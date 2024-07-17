@@ -2,14 +2,20 @@
 <html>
 <head>
     <title>Nagios Host Config Generator</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        form { margin-bottom: 20px; }
+        textarea, input { width: 100%; }
+        pre { background-color: #f4f4f4; padding: 10px; border: 1px solid #ccc; }
+    </style>
 </head>
 <body>
     <h2>Nagios Host Config Generator</h2>
     <form id="nagios-form">
-        <label for="host_names">Host Names (comma-separated):</label><br>
+        <label for="host_names">Host Names (one per line):</label><br>
         <textarea id="host_names" name="host_names" rows="4" cols="50"></textarea><br><br>
         
-        <label for="addresses">Addresses (comma-separated):</label><br>
+        <label for="addresses">Addresses (one per line):</label><br>
         <textarea id="addresses" name="addresses" rows="4" cols="50"></textarea><br><br>
         
         <label for="alias">Alias:</label><br>
@@ -32,25 +38,32 @@
     
     <script>
         function generateScripts() {
-            const hostNames = document.getElementById('host_names').value.split(',');
-            const addresses = document.getElementById('addresses').value.split(',');
-            const alias = document.getElementById('alias').value;
-            const hostgroups = document.getElementById('hostgroups').value;
-            const basePath = document.getElementById('base_path').value;
+            const hostNames = document.getElementById('host_names').value.split('\n').map(name => name.trim()).filter(name => name);
+            const addresses = document.getElementById('addresses').value.split('\n').map(addr => addr.trim()).filter(addr => addr);
+            const alias = document.getElementById('alias').value.trim();
+            const hostgroups = document.getElementById('hostgroups').value.trim();
+            const basePath = document.getElementById('base_path').value.trim();
             const output = document.getElementById('output');
             const fileLinks = document.getElementById('file-links');
             
             output.innerHTML = '';
             fileLinks.innerHTML = '';
             
+            if (!alias || !hostgroups || !basePath) {
+                alert('Please fill in all the fields.');
+                return;
+            }
+
             if (hostNames.length !== addresses.length) {
                 alert('The number of host names and addresses must match.');
                 return;
             }
+
+            let nagiosCfgUpdate = '';
             
             for (let i = 0; i < hostNames.length; i++) {
-                const hostName = hostNames[i].trim();
-                const address = addresses[i].trim();
+                const hostName = hostNames[i];
+                const address = addresses[i];
                 
                 const hostConfig = `# Define the switch that we'll be monitoring
 
@@ -81,6 +94,8 @@ define service {
                 output.innerHTML += `<pre>${echoCommand}</pre>`;
                 
                 const filePath = `cfg_file=${basePath}/${hostgroups}/${hostName}.cfg`;
+                nagiosCfgUpdate += `cfg_file=${filePath}\n`;
+
                 const fileLink = document.createElement('a');
                 fileLink.href = `file://${filePath}`;
                 fileLink.target = '_blank';
@@ -88,6 +103,9 @@ define service {
                 fileLinks.appendChild(fileLink);
                 fileLinks.appendChild(document.createElement('br'));
             }
+
+            const nagiosCfgCommand = `echo -e '${nagiosCfgUpdate}' >> /usr/local/nagios/etc/nagios.cfg`;
+            output.innerHTML += `<pre>${nagiosCfgCommand}</pre>`;
         }
     </script>
 </body>
